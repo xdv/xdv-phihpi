@@ -1,0 +1,14 @@
+﻿# XDV Phi Hardware Provider Interface Workspace Manifest
+
+[workspace]
+name = "xdv_phihpi"
+version = "0.1.0"
+description = "Provider interface for coherence windows, transforms, and stability reports."
+
+[sector]
+name = "xdv_phihpi"
+path = "src"
+
+[target.x64-pc-none]
+linker = "ld"
+linker_flags = ["-nostdlib", "-static"]
