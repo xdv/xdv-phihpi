@@ -1,0 +1,108 @@
+// File: phihpi_stability.ds - This file is part of XDV
+// Copyright (c) 2026 Dust LLC, and Contributors
+// Description:
+//   xdv-phihpi: stability monitoring and report emission.
+
+forge XdvPhihpiStability {
+
+    const STATUS_OK: UInt32 = 0;
+
+    const RESPONSE_NONE: UInt64 = 0;
+    const RESPONSE_ROLLBACK_RELEASE: UInt64 = 1;
+    const RESPONSE_HALT_INVALIDATE: UInt64 = 2;
+
+    proc K::stability_report_token(envelope_id: UInt64, stability_level: UInt64, noise_index: UInt64, integrity_checksum: UInt64, logical_timestamp: UInt64, signature: UInt64) {
+        let env_valid = XdvPhihpiContracts::K::is_envelope_id_valid(envelope_id);
+        if env_valid == STATUS_OK {
+            if stability_level == 0 {
+                return 0;
+            } else {
+                if integrity_checksum == 0 {
+                    return 0;
+                } else {
+                    if logical_timestamp == 0 {
+                        return 0;
+                    } else {
+                        if signature == 0 {
+                            return 0;
+                        } else {
+                            return (logical_timestamp * 1000000000) + (envelope_id * 1000000) + (stability_level * 1000) + (noise_index * 10) + (integrity_checksum - ((integrity_checksum / 10) * 10));
+                        }
+                    }
+                }
+            }
+        } else {
+            return 0;
+        }
+    }
+
+    proc K::monitor_stability_sample(envelope_id: UInt64, stability_level: UInt64, noise_index: UInt64, tolerance_min: UInt64, tolerance_max: UInt64, noise_threshold: UInt64) {
+        let env_valid = XdvPhihpiContracts::K::is_envelope_id_valid(envelope_id);
+        if env_valid == STATUS_OK {
+            let stability_ok = XdvPhihpiContracts::K::is_stability_within_tolerance(stability_level, tolerance_min, tolerance_max);
+            if stability_ok == STATUS_OK {
+                if noise_index > noise_threshold {
+                    return XdvPhihpiContracts::K::STATUS_STABILITY_BREACH;
+                } else {
+                    return STATUS_OK;
+                }
+            } else {
+                return stability_ok;
+            }
+        } else {
+            return env_valid;
+        }
+    }
+
+    proc K::envelope_invalidation_token(contract_id: UInt64, envelope_id: UInt64, reason_code: UInt64, logical_timestamp: UInt64) {
+        if contract_id == 0 {
+            return 0;
+        } else {
+            let env_valid = XdvPhihpiContracts::K::is_envelope_id_valid(envelope_id);
+            if env_valid == STATUS_OK {
+                if reason_code == 0 {
+                    return 0;
+                } else {
+                    if logical_timestamp == 0 {
+                        return 0;
+                    } else {
+                        return (logical_timestamp * 1000000000) + (contract_id * 1000000) + (envelope_id * 1000) + reason_code;
+                    }
+                }
+            } else {
+                return 0;
+            }
+        }
+    }
+
+    proc K::instability_response(contract_id: UInt64, envelope_id: UInt64, monitor_status: UInt32, rollback_required: UInt64, logical_timestamp: UInt64) {
+        if monitor_status == STATUS_OK {
+            return RESPONSE_NONE;
+        } else {
+            if monitor_status == XdvPhihpiContracts::K::STATUS_STABILITY_BREACH {
+                let invalidation = envelope_invalidation_token(contract_id, envelope_id, XdvPhihpiContracts::K::PHI_ERR_STABILITY_BREACH, logical_timestamp);
+                if invalidation == 0 {
+                    return RESPONSE_HALT_INVALIDATE;
+                } else {
+                    if rollback_required == 1 {
+                        return RESPONSE_ROLLBACK_RELEASE;
+                    } else {
+                        return RESPONSE_HALT_INVALIDATE;
+                    }
+                }
+            } else {
+                return RESPONSE_HALT_INVALIDATE;
+            }
+        }
+    }
+
+    proc K::stability_event_digest(envelope_id: UInt64, stability_level: UInt64, noise_index: UInt64, logical_timestamp: UInt64) {
+        let report = stability_report_token(envelope_id, stability_level, noise_index, 1, logical_timestamp, 1);
+        if report == 0 {
+            return 0;
+        } else {
+            let digest = (report * 97) + (stability_level * 193) + noise_index;
+            return digest - ((digest / 1000000) * 1000000);
+        }
+    }
+}

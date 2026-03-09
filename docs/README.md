@@ -1,10 +1,19 @@
-﻿# XDV Phi Hardware Provider Interface Docs
+# XDV PHIHPI Docs
 
-This directory stores architecture notes, protocol definitions, and implementation guidance.
+This directory stores architecture notes and implementation guidance for XDV-061.
 
-## Planned Documents
+## Implemented Documents
 
-- architecture.md
-- interfaces.md
-- test_plan.md
-- integration.md
+- `coherence_contract_and_transform_api.md`
+- `stability_monitoring_reporting.md`
+- `envelope_isolation_constraints.md`
+- `provider_attestation_and_capabilities.md`
+
+## Source Mapping
+
+- Contracts: `src/phihpi_contracts.ds`
+- Provider registration/attestation: `src/phihpi_provider.ds`
+- Coherence contracts and isolation: `src/phihpi_coherence.ds`
+- Transform API: `src/phihpi_transform.ds`
+- Stability monitoring/reporting: `src/phihpi_stability.ds`
+- Tests: `src/phihpi_tests.ds`

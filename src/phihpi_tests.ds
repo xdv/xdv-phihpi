@@ -1,0 +1,168 @@
+// File: phihpi_tests.ds - This file is part of XDV
+// Copyright (c) 2026 Dust LLC, and Contributors
+// Description:
+//   xdv-phihpi: XDV-061 behavior tests.
+
+forge XdvPhihpiTests {
+
+    const TEST_PASS: UInt32 = 0;
+    const TEST_FAIL: UInt32 = 1;
+
+    const STATUS_OK: UInt32 = 0;
+
+    proc K::expect_u32(actual: UInt32, expected: UInt32) {
+        if actual == expected {
+            return TEST_PASS;
+        } else {
+            return TEST_FAIL;
+        }
+    }
+
+    proc K::expect_u64(actual: UInt64, expected: UInt64) {
+        if actual == expected {
+            return TEST_PASS;
+        } else {
+            return TEST_FAIL;
+        }
+    }
+
+    proc K::combine(lhs: UInt32, rhs: UInt32) {
+        if lhs == TEST_PASS {
+            return rhs;
+        } else {
+            return TEST_FAIL;
+        }
+    }
+
+    proc K::test_coherence_contract_and_transform_api() {
+        let reg = XdvPhihpiProvider::K::register_provider(31, 991, 80, 60, 95, XdvPhihpiContracts::K::TRANSFORM_SET_EXTENDED, 6, 10, 7, 888, 10);
+        let att_token = XdvPhihpiProvider::K::attestation_token(31, 991, 888, 20, 10);
+        let att = XdvPhihpiProvider::K::verify_attestation(31, 991, 888, 20, 10, att_token);
+
+        let coherence_token = XdvPhihpiCoherence::K::coherence_contract_token(77, 31, 900, 100, 30, 60, 95, XdvPhihpiContracts::K::TRANSFORM_SET_EXTENDED, 12, 777);
+        let contract_ok = XdvPhihpiCoherence::K::verify_coherence_contract(77, 31, 900, 100, 30, 60, 95, XdvPhihpiContracts::K::TRANSFORM_SET_EXTENDED, 12, 777, coherence_token);
+
+        let descriptor = XdvPhihpiTransform::K::transform_descriptor_token(XdvPhihpiContracts::K::TRANSFORM_PHASE_MERGE, 77, 11, 12, 1, 105);
+
+        let invoke_ok = XdvPhihpiTransform::K::invoke_transform(
+            att,
+            STATUS_OK,
+            100,
+            30,
+            105,
+            XdvPhihpiContracts::K::TRANSFORM_SET_EXTENDED,
+            XdvPhihpiContracts::K::TRANSFORM_PHASE_MERGE,
+            80,
+            60,
+            95,
+            descriptor
+        );
+
+        let invoke_bad_transform = XdvPhihpiTransform::K::invoke_transform(
+            att,
+            STATUS_OK,
+            100,
+            30,
+            106,
+            XdvPhihpiContracts::K::TRANSFORM_SET_BASE,
+            XdvPhihpiContracts::K::TRANSFORM_PHASE_MERGE,
+            80,
+            60,
+            95,
+            descriptor
+        );
+
+        let window_ok = XdvPhihpiCoherence::K::is_execution_within_window(100, 30, 100, 125);
+        let window_bad = XdvPhihpiCoherence::K::is_execution_within_window(100, 30, 101, 125);
+
+        let t1 = expect_u32(reg, STATUS_OK);
+        let t2 = expect_u32(att, STATUS_OK);
+        let t3 = expect_u32(contract_ok, STATUS_OK);
+        let t4 = expect_u32(invoke_ok, STATUS_OK);
+        let t5 = expect_u32(window_ok, STATUS_OK);
+
+        let u1 = combine(t1, t2);
+        let u2 = combine(u1, t3);
+        let u3 = combine(u2, t4);
+        let u4 = combine(u3, t5);
+
+        if coherence_token == 0 {
+            return TEST_FAIL;
+        } else {
+            if descriptor == 0 {
+                return TEST_FAIL;
+            } else {
+                if invoke_bad_transform == XdvPhihpiContracts::K::STATUS_TRANSFORM_UNSUPPORTED {
+                    if window_bad == XdvPhihpiContracts::K::STATUS_INVALID_CONTRACT {
+                        return u4;
+                    } else {
+                        return TEST_FAIL;
+                    }
+                } else {
+                    return TEST_FAIL;
+                }
+            }
+        }
+    }
+
+    proc K::test_stability_monitoring_and_reporting() {
+        let report_a = XdvPhihpiStability::K::stability_report_token(900, 82, 10, 99, 200, 777);
+        let report_b = XdvPhihpiStability::K::stability_report_token(900, 82, 10, 99, 200, 777);
+
+        let monitor_ok = XdvPhihpiStability::K::monitor_stability_sample(900, 82, 10, 60, 95, 20);
+        let monitor_breach = XdvPhihpiStability::K::monitor_stability_sample(900, 50, 10, 60, 95, 20);
+
+        let response = XdvPhihpiStability::K::instability_response(77, 900, monitor_breach, 1, 201);
+        let digest_a = XdvPhihpiStability::K::stability_event_digest(900, 82, 10, 200);
+        let digest_b = XdvPhihpiStability::K::stability_event_digest(900, 82, 10, 200);
+
+        let t1 = expect_u64(report_a, report_b);
+        let t2 = expect_u32(monitor_ok, STATUS_OK);
+        let t3 = expect_u32(monitor_breach, XdvPhihpiContracts::K::STATUS_STABILITY_BREACH);
+        let t4 = expect_u64(digest_a, digest_b);
+
+        let u1 = combine(t1, t2);
+        let u2 = combine(u1, t3);
+        let u3 = combine(u2, t4);
+
+        if report_a == 0 {
+            return TEST_FAIL;
+        } else {
+            if response == XdvPhihpiStability::K::RESPONSE_ROLLBACK_RELEASE {
+                return u3;
+            } else {
+                return TEST_FAIL;
+            }
+        }
+    }
+
+    proc K::test_envelope_isolation_constraints() {
+        let iso_violation = XdvPhihpiCoherence::K::validate_envelope_isolation(900, 11, 100, 30, 900, 12, 110, 20, 0);
+        let iso_shared_ok = XdvPhihpiCoherence::K::validate_envelope_isolation(900, 11, 100, 30, 900, 12, 110, 20, 1);
+        let iso_same_tenant_ok = XdvPhihpiCoherence::K::validate_envelope_isolation(900, 11, 100, 30, 900, 11, 110, 20, 0);
+        let iso_non_overlap_ok = XdvPhihpiCoherence::K::validate_envelope_isolation(900, 11, 100, 30, 900, 12, 200, 20, 0);
+
+        let overlap_yes = XdvPhihpiCoherence::K::windows_overlap(100, 30, 110, 20);
+        let overlap_no = XdvPhihpiCoherence::K::windows_overlap(100, 30, 200, 20);
+
+        let t1 = expect_u32(iso_violation, XdvPhihpiContracts::K::STATUS_ENVELOPE_ISOLATION_VIOLATION);
+        let t2 = expect_u32(iso_shared_ok, STATUS_OK);
+        let t3 = expect_u32(iso_same_tenant_ok, STATUS_OK);
+        let t4 = expect_u32(iso_non_overlap_ok, STATUS_OK);
+        let t5 = expect_u64(overlap_yes, 1);
+        let t6 = expect_u64(overlap_no, 0);
+
+        let u1 = combine(t1, t2);
+        let u2 = combine(u1, t3);
+        let u3 = combine(u2, t4);
+        let u4 = combine(u3, t5);
+        return combine(u4, t6);
+    }
+
+    proc K::run_all_tests() {
+        let t1 = test_coherence_contract_and_transform_api();
+        let t2 = combine(t1, test_stability_monitoring_and_reporting());
+        return combine(t2, test_envelope_isolation_constraints());
+    }
+}
+

@@ -1,0 +1,100 @@
+// File: phihpi_transform.ds - This file is part of XDV
+// Copyright (c) 2026 Dust LLC, and Contributors
+// Description:
+//   xdv-phihpi: transform API flow for XDV-061.
+
+forge XdvPhihpiTransform {
+
+    const STATUS_OK: UInt32 = 0;
+
+    proc K::transform_descriptor_token(transform_id: UInt64, contract_id: UInt64, input_spec: UInt64, output_spec: UInt64, stability_constraints: UInt64, logical_timestamp: UInt64) {
+        if transform_id == 0 {
+            return 0;
+        } else {
+            if contract_id == 0 {
+                return 0;
+            } else {
+                if input_spec == 0 {
+                    return 0;
+                } else {
+                    if output_spec == 0 {
+                        return 0;
+                    } else {
+                        if stability_constraints == 0 {
+                            return 0;
+                        } else {
+                            if logical_timestamp == 0 {
+                                return 0;
+                            } else {
+                                return (logical_timestamp * 1000000000) + (contract_id * 1000000) + (transform_id * 1000) + (stability_constraints * 10) + (input_spec - ((input_spec / 10) * 10));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    proc K::validate_transform_invocation(provider_attestation_status: UInt32, envelope_status: UInt32, start_l: UInt64, duration: UInt64, now_l: UInt64, transform_set_id: UInt64, transform_id: UInt64, stability_level: UInt64, tolerance_min: UInt64, tolerance_max: UInt64) {
+        if provider_attestation_status == STATUS_OK {
+            if envelope_status == STATUS_OK {
+                let contract_active = XdvPhihpiContracts::K::is_contract_active(start_l, duration, now_l);
+                if contract_active == STATUS_OK {
+                    let transform_supported = XdvPhihpiContracts::K::is_transform_supported(transform_set_id, transform_id);
+                    if transform_supported == STATUS_OK {
+                        let stability_ok = XdvPhihpiContracts::K::is_stability_within_tolerance(stability_level, tolerance_min, tolerance_max);
+                        if stability_ok == STATUS_OK {
+                            return STATUS_OK;
+                        } else {
+                            return stability_ok;
+                        }
+                    } else {
+                        return transform_supported;
+                    }
+                } else {
+                    return contract_active;
+                }
+            } else {
+                return envelope_status;
+            }
+        } else {
+            return provider_attestation_status;
+        }
+    }
+
+    proc K::invoke_transform(provider_attestation_status: UInt32, envelope_status: UInt32, start_l: UInt64, duration: UInt64, now_l: UInt64, transform_set_id: UInt64, transform_id: UInt64, stability_level: UInt64, tolerance_min: UInt64, tolerance_max: UInt64, transform_descriptor: UInt64) {
+        if transform_descriptor == 0 {
+            return XdvPhihpiContracts::K::STATUS_INVALID_CONTRACT;
+        } else {
+            return validate_transform_invocation(provider_attestation_status, envelope_status, start_l, duration, now_l, transform_set_id, transform_id, stability_level, tolerance_min, tolerance_max);
+        }
+    }
+
+    proc K::transform_result_token(transform_id: UInt64, status_code: UInt32, structured_output: UInt64, stability_metadata: UInt64, logical_timestamp: UInt64) {
+        if transform_id == 0 {
+            return 0;
+        } else {
+            if structured_output == 0 {
+                return 0;
+            } else {
+                if stability_metadata == 0 {
+                    return 0;
+                } else {
+                    if logical_timestamp == 0 {
+                        return 0;
+                    } else {
+                        return (logical_timestamp * 1000000000) + (transform_id * 1000000) + (structured_output * 1000) + (stability_metadata * 10) + status_code;
+                    }
+                }
+            }
+        }
+    }
+
+    proc K::transform_execution_event(contract_id: UInt64, envelope_id: UInt64, transform_id: UInt64, status_code: UInt32, logical_timestamp: UInt64) {
+        if transform_id == 0 {
+            return 0;
+        } else {
+            return XdvPhihpiCoherence::K::contract_event_token(contract_id, envelope_id, transform_id, status_code, logical_timestamp);
+        }
+    }
+}

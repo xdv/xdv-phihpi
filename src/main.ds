@@ -1,2 +1,107 @@
-﻿# XDV Phi Hardware Provider Interface bootstrap surface
-# TODO: implement module entrypoint
+// File: main.ds - This file is part of XDV
+// Copyright (c) 2026 Dust LLC, and Contributors
+// Description:
+//   xdv-phihpi: top-level entrypoints for XDV-061.
+
+forge XdvPhihpiMain {
+
+    const STATUS_OK: UInt32 = 0;
+    const STATUS_BOOTSTRAP_FAILED: UInt32 = 1;
+
+    proc K::startup_contract_validation() {
+        let provider = XdvPhihpiContracts::K::is_provider_id_valid(31);
+        if provider == STATUS_OK {
+            let transform_set = XdvPhihpiContracts::K::is_transform_set_valid(XdvPhihpiContracts::K::TRANSFORM_SET_EXTENDED);
+            if transform_set == STATUS_OK {
+                let stability = XdvPhihpiContracts::K::is_stability_range_valid(60, 95);
+                if stability == STATUS_OK {
+                    return STATUS_OK;
+                } else {
+                    return STATUS_BOOTSTRAP_FAILED;
+                }
+            } else {
+                return STATUS_BOOTSTRAP_FAILED;
+            }
+        } else {
+            return STATUS_BOOTSTRAP_FAILED;
+        }
+    }
+
+    proc K::smoke_coherence_transform_flow() {
+        let reg = XdvPhihpiProvider::K::register_provider(31, 991, 80, 60, 95, XdvPhihpiContracts::K::TRANSFORM_SET_EXTENDED, 6, 10, 7, 888, 10);
+        if reg == STATUS_OK {
+            let att_token = XdvPhihpiProvider::K::attestation_token(31, 991, 888, 20, 10);
+            let att = XdvPhihpiProvider::K::verify_attestation(31, 991, 888, 20, 10, att_token);
+            if att == STATUS_OK {
+                let coherence_token = XdvPhihpiCoherence::K::coherence_contract_token(77, 31, 900, 100, 30, 60, 95, XdvPhihpiContracts::K::TRANSFORM_SET_EXTENDED, 12, 777);
+                if coherence_token == 0 {
+                    return STATUS_BOOTSTRAP_FAILED;
+                } else {
+                    let descriptor = XdvPhihpiTransform::K::transform_descriptor_token(XdvPhihpiContracts::K::TRANSFORM_PHASE_MERGE, 77, 11, 12, 1, 105);
+                    let invoke = XdvPhihpiTransform::K::invoke_transform(att, STATUS_OK, 100, 30, 105, XdvPhihpiContracts::K::TRANSFORM_SET_EXTENDED, XdvPhihpiContracts::K::TRANSFORM_PHASE_MERGE, 80, 60, 95, descriptor);
+                    if invoke == STATUS_OK {
+                        return STATUS_OK;
+                    } else {
+                        return STATUS_BOOTSTRAP_FAILED;
+                    }
+                }
+            } else {
+                return STATUS_BOOTSTRAP_FAILED;
+            }
+        } else {
+            return STATUS_BOOTSTRAP_FAILED;
+        }
+    }
+
+    proc K::smoke_stability_flow() {
+        let monitor = XdvPhihpiStability::K::monitor_stability_sample(900, 82, 10, 60, 95, 20);
+        if monitor == STATUS_OK {
+            let report = XdvPhihpiStability::K::stability_report_token(900, 82, 10, 99, 200, 777);
+            if report == 0 {
+                return STATUS_BOOTSTRAP_FAILED;
+            } else {
+                return STATUS_OK;
+            }
+        } else {
+            return STATUS_BOOTSTRAP_FAILED;
+        }
+    }
+
+    proc K::smoke_isolation_flow() {
+        let isolation = XdvPhihpiCoherence::K::validate_envelope_isolation(900, 11, 100, 30, 900, 12, 110, 20, 0);
+        if isolation == XdvPhihpiContracts::K::STATUS_ENVELOPE_ISOLATION_VIOLATION {
+            return STATUS_OK;
+        } else {
+            return STATUS_BOOTSTRAP_FAILED;
+        }
+    }
+
+    proc K::run_self_tests() {
+        return XdvPhihpiTests::K::run_all_tests();
+    }
+
+    proc K::bootstrap() {
+        let startup = startup_contract_validation();
+        if startup == STATUS_OK {
+            let flow1 = smoke_coherence_transform_flow();
+            if flow1 == STATUS_OK {
+                let flow2 = smoke_stability_flow();
+                if flow2 == STATUS_OK {
+                    let flow3 = smoke_isolation_flow();
+                    if flow3 == STATUS_OK {
+                        return STATUS_OK;
+                    } else {
+                        return STATUS_BOOTSTRAP_FAILED;
+                    }
+                } else {
+                    return STATUS_BOOTSTRAP_FAILED;
+                }
+            } else {
+                return STATUS_BOOTSTRAP_FAILED;
+            }
+        } else {
+            return STATUS_BOOTSTRAP_FAILED;
+        }
+    }
+}
+

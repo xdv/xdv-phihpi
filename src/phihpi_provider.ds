@@ -1,0 +1,145 @@
+// File: phihpi_provider.ds - This file is part of XDV
+// Copyright (c) 2026 Dust LLC, and Contributors
+// Description:
+//   xdv-phihpi: provider registration and attestation for XDV-061.
+
+forge XdvPhihpiProvider {
+
+    const STATUS_OK: UInt32 = 0;
+
+    proc K::provider_identity_token(provider_id: UInt64, firmware_measurement_hash: UInt64, coherence_capabilities: UInt64, stability_min: UInt64, stability_max: UInt64, supported_transform_set: UInt64, envelope_capacity: UInt64, phase_resolution: UInt64, hardware_interface_id: UInt64, pq_signature: UInt64) {
+        let provider_valid = XdvPhihpiContracts::K::is_provider_id_valid(provider_id);
+        if provider_valid == STATUS_OK {
+            let coherence_valid = XdvPhihpiContracts::K::is_coherence_duration_valid(coherence_capabilities);
+            if coherence_valid == STATUS_OK {
+                let stability_valid = XdvPhihpiContracts::K::is_stability_range_valid(stability_min, stability_max);
+                if stability_valid == STATUS_OK {
+                    let transform_valid = XdvPhihpiContracts::K::is_transform_set_valid(supported_transform_set);
+                    if transform_valid == STATUS_OK {
+                        if firmware_measurement_hash == 0 {
+                            return 0;
+                        } else {
+                            if envelope_capacity == 0 {
+                                return 0;
+                            } else {
+                                if phase_resolution == 0 {
+                                    return 0;
+                                } else {
+                                    if hardware_interface_id == 0 {
+                                        return 0;
+                                    } else {
+                                        if pq_signature == 0 {
+                                            return 0;
+                                        } else {
+                                            return (provider_id * 1000000000000) + (coherence_capabilities * 100000000) + (supported_transform_set * 1000000) + (envelope_capacity * 10000) + (phase_resolution * 100) + (firmware_measurement_hash - ((firmware_measurement_hash / 100) * 100));
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        return 0;
+                    }
+                } else {
+                    return 0;
+                }
+            } else {
+                return 0;
+            }
+        } else {
+            return 0;
+        }
+    }
+
+    proc K::register_provider(provider_id: UInt64, firmware_measurement_hash: UInt64, coherence_capabilities: UInt64, stability_min: UInt64, stability_max: UInt64, supported_transform_set: UInt64, envelope_capacity: UInt64, phase_resolution: UInt64, hardware_interface_id: UInt64, pq_signature: UInt64, logical_timestamp: UInt64) {
+        if logical_timestamp == 0 {
+            return XdvPhihpiContracts::K::STATUS_INVALID_PROVIDER;
+        } else {
+            let token = provider_identity_token(provider_id, firmware_measurement_hash, coherence_capabilities, stability_min, stability_max, supported_transform_set, envelope_capacity, phase_resolution, hardware_interface_id, pq_signature);
+            if token == 0 {
+                return XdvPhihpiContracts::K::STATUS_INVALID_PROVIDER;
+            } else {
+                return STATUS_OK;
+            }
+        }
+    }
+
+    proc K::attestation_token(provider_id: UInt64, firmware_measurement_hash: UInt64, pq_signature: UInt64, attestation_nonce: UInt64, logical_timestamp: UInt64) {
+        let provider_valid = XdvPhihpiContracts::K::is_provider_id_valid(provider_id);
+        if provider_valid == STATUS_OK {
+            if firmware_measurement_hash == 0 {
+                return 0;
+            } else {
+                if pq_signature == 0 {
+                    return 0;
+                } else {
+                    if attestation_nonce == 0 {
+                        return 0;
+                    } else {
+                        if logical_timestamp == 0 {
+                            return 0;
+                        } else {
+                            let mixed = (provider_id * 4099) + (firmware_measurement_hash * 97) + (pq_signature * 193) + (attestation_nonce * 17) + logical_timestamp;
+                            return mixed - ((mixed / 1000000) * 1000000);
+                        }
+                    }
+                }
+            }
+        } else {
+            return 0;
+        }
+    }
+
+    proc K::verify_attestation(provider_id: UInt64, firmware_measurement_hash: UInt64, pq_signature: UInt64, attestation_nonce: UInt64, logical_timestamp: UInt64, presented_token: UInt64) {
+        let expected = attestation_token(provider_id, firmware_measurement_hash, pq_signature, attestation_nonce, logical_timestamp);
+        if expected == 0 {
+            return XdvPhihpiContracts::K::STATUS_INVALID_ATTESTATION;
+        } else {
+            if expected == presented_token {
+                return STATUS_OK;
+            } else {
+                return XdvPhihpiContracts::K::STATUS_INVALID_ATTESTATION;
+            }
+        }
+    }
+
+    proc K::provider_capability_token(provider_id: UInt64, max_coherence_duration: UInt64, supported_transform_set: UInt64, stability_min: UInt64, stability_max: UInt64, envelope_capacity: UInt64, phase_resolution: UInt64, hardware_interface_id: UInt64, signature: UInt64) {
+        let provider_valid = XdvPhihpiContracts::K::is_provider_id_valid(provider_id);
+        if provider_valid == STATUS_OK {
+            let coherence_valid = XdvPhihpiContracts::K::is_coherence_duration_valid(max_coherence_duration);
+            if coherence_valid == STATUS_OK {
+                let transform_valid = XdvPhihpiContracts::K::is_transform_set_valid(supported_transform_set);
+                if transform_valid == STATUS_OK {
+                    let stability_valid = XdvPhihpiContracts::K::is_stability_range_valid(stability_min, stability_max);
+                    if stability_valid == STATUS_OK {
+                        if envelope_capacity == 0 {
+                            return 0;
+                        } else {
+                            if phase_resolution == 0 {
+                                return 0;
+                            } else {
+                                if hardware_interface_id == 0 {
+                                    return 0;
+                                } else {
+                                    if signature == 0 {
+                                        return 0;
+                                    } else {
+                                        return (provider_id * 1000000000000) + (max_coherence_duration * 100000000) + (supported_transform_set * 1000000) + (envelope_capacity * 10000) + (phase_resolution * 100) + (hardware_interface_id - ((hardware_interface_id / 100) * 100));
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        return 0;
+                    }
+                } else {
+                    return 0;
+                }
+            } else {
+                return 0;
+            }
+        } else {
+            return 0;
+        }
+    }
+}

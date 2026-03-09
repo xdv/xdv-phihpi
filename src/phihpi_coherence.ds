@@ -1,0 +1,158 @@
+// File: phihpi_coherence.ds - This file is part of XDV
+// Copyright (c) 2026 Dust LLC, and Contributors
+// Description:
+//   xdv-phihpi: coherence window contract and envelope isolation checks.
+
+forge XdvPhihpiCoherence {
+
+    const STATUS_OK: UInt32 = 0;
+
+    proc K::coherence_contract_token(contract_id: UInt64, provider_id: UInt64, envelope_id: UInt64, start_l: UInt64, duration: UInt64, stability_tolerance_min: UInt64, stability_tolerance_max: UInt64, transform_set_id: UInt64, capability_id: UInt64, signature: UInt64) {
+        if contract_id == 0 {
+            return 0;
+        } else {
+            let provider_valid = XdvPhihpiContracts::K::is_provider_id_valid(provider_id);
+            if provider_valid == STATUS_OK {
+                let envelope_valid = XdvPhihpiContracts::K::is_envelope_id_valid(envelope_id);
+                if envelope_valid == STATUS_OK {
+                    let window_valid = XdvPhihpiContracts::K::is_contract_window_valid(start_l, duration);
+                    if window_valid == STATUS_OK {
+                        let stability_valid = XdvPhihpiContracts::K::is_stability_range_valid(stability_tolerance_min, stability_tolerance_max);
+                        if stability_valid == STATUS_OK {
+                            let transform_valid = XdvPhihpiContracts::K::is_transform_set_valid(transform_set_id);
+                            if transform_valid == STATUS_OK {
+                                if capability_id == 0 {
+                                    return 0;
+                                } else {
+                                    if signature == 0 {
+                                        return 0;
+                                    } else {
+                                        return (contract_id * 1000000000000) + (provider_id * 100000000) + (envelope_id * 1000000) + (start_l * 1000) + (duration - ((duration / 1000) * 1000));
+                                    }
+                                }
+                            } else {
+                                return 0;
+                            }
+                        } else {
+                            return 0;
+                        }
+                    } else {
+                        return 0;
+                    }
+                } else {
+                    return 0;
+                }
+            } else {
+                return 0;
+            }
+        }
+    }
+
+    proc K::verify_coherence_contract(contract_id: UInt64, provider_id: UInt64, envelope_id: UInt64, start_l: UInt64, duration: UInt64, stability_tolerance_min: UInt64, stability_tolerance_max: UInt64, transform_set_id: UInt64, capability_id: UInt64, signature: UInt64, presented_token: UInt64) {
+        let expected = coherence_contract_token(contract_id, provider_id, envelope_id, start_l, duration, stability_tolerance_min, stability_tolerance_max, transform_set_id, capability_id, signature);
+        if expected == 0 {
+            return XdvPhihpiContracts::K::STATUS_INVALID_CONTRACT;
+        } else {
+            if expected == presented_token {
+                return STATUS_OK;
+            } else {
+                return XdvPhihpiContracts::K::STATUS_INVALID_CONTRACT;
+            }
+        }
+    }
+
+    proc K::is_execution_within_window(start_l: UInt64, duration: UInt64, execute_start_l: UInt64, execute_end_l: UInt64) {
+        let window_valid = XdvPhihpiContracts::K::is_contract_window_valid(start_l, duration);
+        if window_valid == STATUS_OK {
+            let end_l = XdvPhihpiContracts::K::contract_end_l(start_l, duration);
+            if execute_start_l == start_l {
+                if execute_end_l <= end_l {
+                    return STATUS_OK;
+                } else {
+                    return XdvPhihpiContracts::K::STATUS_CONTRACT_EXPIRED;
+                }
+            } else {
+                return XdvPhihpiContracts::K::STATUS_INVALID_CONTRACT;
+            }
+        } else {
+            return window_valid;
+        }
+    }
+
+    proc K::windows_overlap(start_a: UInt64, duration_a: UInt64, start_b: UInt64, duration_b: UInt64) {
+        let valid_a = XdvPhihpiContracts::K::is_contract_window_valid(start_a, duration_a);
+        if valid_a == STATUS_OK {
+            let valid_b = XdvPhihpiContracts::K::is_contract_window_valid(start_b, duration_b);
+            if valid_b == STATUS_OK {
+                let end_a = XdvPhihpiContracts::K::contract_end_l(start_a, duration_a);
+                let end_b = XdvPhihpiContracts::K::contract_end_l(start_b, duration_b);
+
+                if end_a < start_b {
+                    return 0;
+                } else {
+                    if end_b < start_a {
+                        return 0;
+                    } else {
+                        return 1;
+                    }
+                }
+            } else {
+                return 0;
+            }
+        } else {
+            return 0;
+        }
+    }
+
+    proc K::validate_envelope_isolation(envelope_a: UInt64, tenant_a: UInt64, start_a: UInt64, duration_a: UInt64, envelope_b: UInt64, tenant_b: UInt64, start_b: UInt64, duration_b: UInt64, explicit_sharing_contract: UInt64) {
+        let env_a_valid = XdvPhihpiContracts::K::is_envelope_id_valid(envelope_a);
+        if env_a_valid == STATUS_OK {
+            let env_b_valid = XdvPhihpiContracts::K::is_envelope_id_valid(envelope_b);
+            if env_b_valid == STATUS_OK {
+                if envelope_a == envelope_b {
+                    let overlap = windows_overlap(start_a, duration_a, start_b, duration_b);
+                    if overlap == 1 {
+                        if tenant_a == tenant_b {
+                            return STATUS_OK;
+                        } else {
+                            if explicit_sharing_contract == 1 {
+                                return STATUS_OK;
+                            } else {
+                                return XdvPhihpiContracts::K::STATUS_ENVELOPE_ISOLATION_VIOLATION;
+                            }
+                        }
+                    } else {
+                        return STATUS_OK;
+                    }
+                } else {
+                    return STATUS_OK;
+                }
+            } else {
+                return env_b_valid;
+            }
+        } else {
+            return env_a_valid;
+        }
+    }
+
+    proc K::contract_event_token(contract_id: UInt64, envelope_id: UInt64, event_code: UInt64, status_code: UInt32, logical_timestamp: UInt64) {
+        if contract_id == 0 {
+            return 0;
+        } else {
+            let env_valid = XdvPhihpiContracts::K::is_envelope_id_valid(envelope_id);
+            if env_valid == STATUS_OK {
+                if event_code == 0 {
+                    return 0;
+                } else {
+                    if logical_timestamp == 0 {
+                        return 0;
+                    } else {
+                        return (logical_timestamp * 1000000000) + (contract_id * 1000000) + (envelope_id * 1000) + (event_code * 10) + status_code;
+                    }
+                }
+            } else {
+                return 0;
+            }
+        }
+    }
+}

@@ -1,0 +1,243 @@
+// File: phihpi_contracts.ds - This file is part of XDV
+// Copyright (c) 2026 Dust LLC, and Contributors
+// Description:
+//   xdv-phihpi: XDV-061 constants, validators, and stable error codes.
+
+forge XdvPhihpiContracts {
+
+    const STATUS_OK: UInt32 = 0;
+    const STATUS_INVALID_PROVIDER: UInt32 = 1;
+    const STATUS_INVALID_ATTESTATION: UInt32 = 2;
+    const STATUS_INVALID_CAPABILITY: UInt32 = 3;
+    const STATUS_INVALID_CONTRACT: UInt32 = 4;
+    const STATUS_CONTRACT_EXPIRED: UInt32 = 5;
+    const STATUS_TRANSFORM_UNSUPPORTED: UInt32 = 6;
+    const STATUS_STABILITY_BREACH: UInt32 = 7;
+    const STATUS_ENVELOPE_INVALID: UInt32 = 8;
+    const STATUS_ENVELOPE_ISOLATION_VIOLATION: UInt32 = 9;
+    const STATUS_HARDWARE_FAILURE: UInt32 = 10;
+
+    const PHI_ERR_COHERENCE_TIMEOUT: UInt64 = 2001;
+    const PHI_ERR_STABILITY_BREACH: UInt64 = 2002;
+    const PHI_ERR_TRANSFORM_UNSUPPORTED: UInt64 = 2003;
+    const PHI_ERR_ENVELOPE_INVALID: UInt64 = 2004;
+    const PHI_ERR_HARDWARE_FAILURE: UInt64 = 2005;
+
+    const PROVIDER_STATE_REGISTERED: UInt64 = 1;
+    const PROVIDER_STATE_ATTESTED: UInt64 = 2;
+    const PROVIDER_STATE_ACTIVE: UInt64 = 3;
+
+    const TRANSFORM_SET_BASE: UInt64 = 1;
+    const TRANSFORM_SET_EXTENDED: UInt64 = 2;
+    const TRANSFORM_SET_FULL: UInt64 = 3;
+
+    const TRANSFORM_PHASE_ALIGN: UInt64 = 1;
+    const TRANSFORM_PHASE_SHIFT: UInt64 = 2;
+    const TRANSFORM_PHASE_MERGE: UInt64 = 3;
+    const TRANSFORM_PHASE_SPLIT: UInt64 = 4;
+
+    proc K::is_provider_id_valid(provider_id: UInt64) {
+        if provider_id == 0 {
+            return STATUS_INVALID_PROVIDER;
+        } else {
+            return STATUS_OK;
+        }
+    }
+
+    proc K::is_provider_state_valid(state: UInt64) {
+        if state == PROVIDER_STATE_REGISTERED {
+            return STATUS_OK;
+        } else {
+            if state == PROVIDER_STATE_ATTESTED {
+                return STATUS_OK;
+            } else {
+                if state == PROVIDER_STATE_ACTIVE {
+                    return STATUS_OK;
+                } else {
+                    return STATUS_INVALID_PROVIDER;
+                }
+            }
+        }
+    }
+
+    proc K::is_coherence_duration_valid(max_coherence_duration: UInt64) {
+        if max_coherence_duration == 0 {
+            return STATUS_INVALID_CAPABILITY;
+        } else {
+            return STATUS_OK;
+        }
+    }
+
+    proc K::is_transform_set_valid(transform_set_id: UInt64) {
+        if transform_set_id == TRANSFORM_SET_BASE {
+            return STATUS_OK;
+        } else {
+            if transform_set_id == TRANSFORM_SET_EXTENDED {
+                return STATUS_OK;
+            } else {
+                if transform_set_id == TRANSFORM_SET_FULL {
+                    return STATUS_OK;
+                } else {
+                    return STATUS_INVALID_CAPABILITY;
+                }
+            }
+        }
+    }
+
+    proc K::is_stability_range_valid(stability_min: UInt64, stability_max: UInt64) {
+        if stability_min == 0 {
+            return STATUS_INVALID_CAPABILITY;
+        } else {
+            if stability_max == 0 {
+                return STATUS_INVALID_CAPABILITY;
+            } else {
+                if stability_max < stability_min {
+                    return STATUS_INVALID_CAPABILITY;
+                } else {
+                    return STATUS_OK;
+                }
+            }
+        }
+    }
+
+    proc K::is_envelope_id_valid(envelope_id: UInt64) {
+        if envelope_id == 0 {
+            return STATUS_ENVELOPE_INVALID;
+        } else {
+            return STATUS_OK;
+        }
+    }
+
+    proc K::is_contract_window_valid(start_l: UInt64, duration: UInt64) {
+        if start_l == 0 {
+            return STATUS_INVALID_CONTRACT;
+        } else {
+            if duration == 0 {
+                return STATUS_INVALID_CONTRACT;
+            } else {
+                return STATUS_OK;
+            }
+        }
+    }
+
+    proc K::contract_end_l(start_l: UInt64, duration: UInt64) {
+        let window_valid = is_contract_window_valid(start_l, duration);
+        if window_valid == STATUS_OK {
+            return start_l + duration;
+        } else {
+            return 0;
+        }
+    }
+
+    proc K::is_contract_active(start_l: UInt64, duration: UInt64, now_l: UInt64) {
+        let window_valid = is_contract_window_valid(start_l, duration);
+        if window_valid == STATUS_OK {
+            let end_l = contract_end_l(start_l, duration);
+            if now_l < start_l {
+                return STATUS_INVALID_CONTRACT;
+            } else {
+                if now_l > end_l {
+                    return STATUS_CONTRACT_EXPIRED;
+                } else {
+                    return STATUS_OK;
+                }
+            }
+        } else {
+            return window_valid;
+        }
+    }
+
+    proc K::is_transform_supported(transform_set_id: UInt64, transform_id: UInt64) {
+        let set_valid = is_transform_set_valid(transform_set_id);
+        if set_valid == STATUS_OK {
+            if transform_set_id == TRANSFORM_SET_BASE {
+                if transform_id == TRANSFORM_PHASE_ALIGN {
+                    return STATUS_OK;
+                } else {
+                    if transform_id == TRANSFORM_PHASE_SHIFT {
+                        return STATUS_OK;
+                    } else {
+                        return STATUS_TRANSFORM_UNSUPPORTED;
+                    }
+                }
+            } else {
+                if transform_set_id == TRANSFORM_SET_EXTENDED {
+                    if transform_id == TRANSFORM_PHASE_ALIGN {
+                        return STATUS_OK;
+                    } else {
+                        if transform_id == TRANSFORM_PHASE_SHIFT {
+                            return STATUS_OK;
+                        } else {
+                            if transform_id == TRANSFORM_PHASE_MERGE {
+                                return STATUS_OK;
+                            } else {
+                                return STATUS_TRANSFORM_UNSUPPORTED;
+                            }
+                        }
+                    }
+                } else {
+                    if transform_set_id == TRANSFORM_SET_FULL {
+                        if transform_id == TRANSFORM_PHASE_ALIGN {
+                            return STATUS_OK;
+                        } else {
+                            if transform_id == TRANSFORM_PHASE_SHIFT {
+                                return STATUS_OK;
+                            } else {
+                                if transform_id == TRANSFORM_PHASE_MERGE {
+                                    return STATUS_OK;
+                                } else {
+                                    if transform_id == TRANSFORM_PHASE_SPLIT {
+                                        return STATUS_OK;
+                                    } else {
+                                        return STATUS_TRANSFORM_UNSUPPORTED;
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        return STATUS_INVALID_CAPABILITY;
+                    }
+                }
+            }
+        } else {
+            return set_valid;
+        }
+    }
+
+    proc K::is_stability_within_tolerance(stability_level: UInt64, tolerance_min: UInt64, tolerance_max: UInt64) {
+        let range_valid = is_stability_range_valid(tolerance_min, tolerance_max);
+        if range_valid == STATUS_OK {
+            if stability_level < tolerance_min {
+                return STATUS_STABILITY_BREACH;
+            } else {
+                if stability_level > tolerance_max {
+                    return STATUS_STABILITY_BREACH;
+                } else {
+                    return STATUS_OK;
+                }
+            }
+        } else {
+            return range_valid;
+        }
+    }
+
+    proc K::status_to_error_code(status: UInt32) {
+        if status == STATUS_CONTRACT_EXPIRED {
+            return PHI_ERR_COHERENCE_TIMEOUT;
+        } else {
+            if status == STATUS_STABILITY_BREACH {
+                return PHI_ERR_STABILITY_BREACH;
+            } else {
+                if status == STATUS_TRANSFORM_UNSUPPORTED {
+                    return PHI_ERR_TRANSFORM_UNSUPPORTED;
+                } else {
+                    if status == STATUS_ENVELOPE_INVALID {
+                        return PHI_ERR_ENVELOPE_INVALID;
+                    } else {
+                        return PHI_ERR_HARDWARE_FAILURE;
+                    }
+                }
+            }
+        }
+    }
+}

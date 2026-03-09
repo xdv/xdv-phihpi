@@ -1,78 +1,70 @@
-﻿# XDV Phi Hardware Provider Interface
+# XDV Phi Hardware Provider Interface
 
 Version: 0.1.0
-Status: planned
+Status: active
 Language: Dust Programming Language (DPL)
 
 ## Specification Alignment
 
-Primary specification: XDV-061 in xdv-spec.
+Primary specification: XDV-061 in `xdv-spec`.
+
+Implemented focus for this milestone:
+
+1. Coherence window contract and transform API flow.
+2. Stability monitoring and report emission.
+3. Envelope isolation validation constraints.
 
 ## Purpose
 
-Provider interface for coherence windows, transforms, and stability reports.
+Phi-domain hardware provider boundary for contract-bound coherence execution.
 
-## Scope
+## Modules
 
-This project is responsible for:
+- `src/phihpi_contracts.ds`
+  Normative constants and validators for provider identity, transform sets, contract windows, stability tolerance, and error mapping.
 
-- Implementing normative requirements defined by XDV-061.
-- Publishing deterministic behavior contracts for integration with xdv-os.
-- Providing reusable modules for cross-repo integration.
-- Supplying verification and conformance fixtures for regression control.
+- `src/phihpi_provider.ds`
+  Provider registration, capability declaration tokenization, attestation token generation, and verification.
 
-## Planned Deliverables
+- `src/phihpi_coherence.ds`
+  Coherence window contract tokenization/verification, execution-window enforcement, overlap detection, and envelope isolation checks.
 
-- coherence-contracts, transform-api
-- Public APIs in src/
-- Test fixtures in tests/
-- Design and interface docs in docs/
+- `src/phihpi_transform.ds`
+  Transform descriptor construction, invocation validation path, and structured transform result/event tokenization.
 
-## Repository Layout
+- `src/phihpi_stability.ds`
+  Continuous stability sample evaluation, report tokenization, instability response, and event digest path.
 
-- src/ : core module implementations.
-- tests/ : deterministic unit/integration/conformance fixtures.
-- docs/ : architecture, protocol, and usage documentation.
-- State.toml : workspace manifest.
-- changelog.md : release and milestone notes.
+- `src/phihpi_tests.ds`
+  Behavioral tests for coherence+transform API, stability monitoring/reporting, and envelope isolation constraints.
 
-## Initial Module Plan
+- `src/main.ds`
+  Startup validation, smoke flows, and self-test entrypoints.
 
-- src/main.ds: project entrypoint and top-level orchestration.
-- src/contracts.ds: normative contract models and validators.
-- src/protocol.ds: wire/protocol semantics for external interfaces.
-- src/errors.ds: canonical error model and deterministic mapping.
-- src/tests.ds: local test harness entry surface.
+## Design Notes
 
-## Dependencies
-
-Current planned dependencies:
-
-- xdv-kernel, xdv-sdbm, xdv-runtime
-- dust runtime/toolchain packages as required by integration profile
-
-## Integration Contracts
-
-- Must preserve deterministic ordering semantics.
-- Must avoid implicit cross-domain state mutation.
-- Must emit structured metadata for replay and audit paths.
-- Must remain compatible with xdv-os build and boot/runtime contracts.
+- No transform runs without active coherence contract validation.
+- Transform compatibility is checked against declared transform set.
+- Stability monitoring enforces tolerance and noise thresholds.
+- Envelope aliasing/overlap across tenants requires explicit sharing contract.
+- Report/event tokens are deterministic for replay-equivalent behavior.
 
 ## Build
 
+```bash
 dust check xdv-phihpi/src
+```
 
 ## Test
 
-dust test xdv-phihpi/tests
+```bash
+dust check xdv-phihpi/src/phihpi_tests.ds
+dust check xdv-phihpi/tests/phihpi_e2e.ds
+```
 
-## Milestones
+## Integration Contracts
 
-1. M1: scaffold + contract models.
-2. M2: core pipeline implementation.
-3. M3: deterministic behavior and fixture hardening.
-4. M4: xdv-os integration and conformance gating.
-
-## Notes
-
-This project is initialized as a skeleton template and intentionally starts with minimal source implementation.
+- Preserve deterministic contract/transform/report ordering.
+- Keep envelope isolation checks in transform path.
+- Emit structured stability/error metadata only (no raw phase state).
+- Enforce contract expiration and instability response deterministically.
